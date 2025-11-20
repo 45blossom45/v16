@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kassenbon‑Splitter (Ordner & mehr)</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.4/dist/tesseract.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Kassenbon‑Splitter</h1>
+    <p>Verwalten Sie mehrere Kassenbons in getrennten Ordnern, teilen Sie Beträge unter Freunden auf und speichern Sie alles sicher lokal.</p>
+  </header>
+  <main>
+    <!-- Authentifizierung -->
+    <section id="auth-section">
+      <h2>Anmeldung</h2>
+      <div class="auth-form">
+        <!-- Language selector for internationalisation -->
+        <div class="lang-select">
+          <label for="language-select">Sprache / Language:</label>
+          <select id="language-select">
+            <option value="de">Deutsch</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <input type="text" id="auth-username" placeholder="Benutzername" autocomplete="username" />
+        <input type="password" id="auth-password" placeholder="Passwort" autocomplete="current-password" />
+        <div class="auth-buttons">
+          <button id="login-button">Einloggen</button>
+          <button id="signup-button">Registrieren</button>
+        </div>
+        <p id="auth-message" class="message"></p>
+      </div>
+    </section>
+    <!-- Hauptanwendung -->
+    <section id="app-section" class="hidden">
+      <div class="top-bar">
+        <span id="user-display"></span>
+        <button id="logout-button">Abmelden</button>
+        <button id="settings-button" class="secondary-button">⚙️ Einstellungen</button>
+      </div>
+      <!-- Ordnerverwaltung -->
+      <section id="folder-section">
+        <h3>Ordner</h3>
+        <div id="folders-list"></div>
+        <div class="folder-form">
+          <input type="text" id="folder-name" placeholder="Neuer Ordner" />
+          <button id="add-folder">Ordner hinzufügen</button>
+          <button id="share-folder" class="secondary-button">Teilen</button>
+          <!-- Button to generate a share link for the entire folder (assign without login) -->
+          <button id="link-folder-share" class="secondary-button" title="Link zum Ordner teilen">📎 Ordner‑Link</button>
+        </div>
+      </section>
+      <!-- Personenverwaltung -->
+      <section id="people-section">
+        <h3>Personen im Ordner</h3>
+        <div id="people-list"></div>
+        <input type="text" id="person-name" placeholder="Name" />
+        <button id="add-person">Person hinzufügen</button>
+        <button id="edit-prefs" class="secondary-button">Präferenzen</button>
+      </section>
+      <!-- Kassenbons hochladen -->
+      <section id="upload-section">
+        <h3>Kassenbons hochladen</h3>
+        <input type="file" id="receipt-input" accept="image/*" multiple />
+        <!-- Manuelles Erstellen eines Bons ohne Upload -->
+        <button id="create-receipt" class="secondary-button">Bon manuell erstellen</button>
+        <div id="upload-info" class="message"></div>
+      </section>
+      <!-- Liste der Kassenbons -->
+      <section id="receipts-section">
+        <h3>Kassenbons im Ordner</h3>
+        <div id="receipts-list"></div>
+      </section>
+      <!-- Abrechnung -->
+      <section id="settle-section">
+        <h3>Gesamte Abrechnung</h3>
+        <button id="compute-all">Abrechnung berechnen</button>
+        <div id="summary-table"></div>
+        <div id="results"></div>
+        <div class="export-buttons">
+          <button id="export-all" class="secondary-button">PDF Export (alle Details)</button>
+          <button id="export-summary" class="secondary-button">PDF Export (Zusammenfassung)</button>
+        </div>
+      </section>
+      <!-- Floating button to add a new receipt (always visible). When clicked, a new
+           empty receipt will be inserted directly below the currently active receipt.
+           It is positioned fixed on the right edge of the screen so it is always
+           accessible. -->
+      <button id="floating-add-receipt" class="floating-button" title="Neuen Bon nach aktuellem Bon einfügen">＋</button>
+    </section>
+  </main>
+  <footer>
+    <p>Alle Daten werden lokal im Browser (IndexedDB/LocalStorage) gespeichert. Es werden keine Daten übertragen.</p>
+  </footer>
+
+  <!-- Präferenzen Modal -->
+  <div id="prefs-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Präferenzen für Personen</h3>
+      <div id="prefs-list"></div>
+      <div class="modal-actions">
+        <button id="prefs-save">Speichern</button>
+        <button id="prefs-close">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share Folder Modal -->
+  <div id="share-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Ordner teilen</h3>
+      <p>Wählen Sie Benutzer, die Zugriff auf diesen Ordner haben sollen:</p>
+      <div id="share-users-list"></div>
+      <div class="modal-actions">
+        <button id="share-save">Speichern</button>
+        <button id="share-close">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Einstellungen</h3>
+      <div class="settings-section">
+        <label for="settings-language">Sprache / Language:</label>
+        <select id="settings-language">
+          <option value="de">Deutsch</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <!-- Benutzername ändern -->
+      <div class="settings-section">
+        <label for="settings-new-username">Neuer Benutzername:</label>
+        <input type="text" id="settings-new-username" placeholder="Neuer Benutzername" />
+      </div>
+      <!-- Passwort ändern -->
+      <div class="settings-section">
+        <label for="settings-new-password">Neues Passwort:</label>
+        <input type="password" id="settings-new-password" placeholder="Neues Passwort" />
+      </div>
+      <!-- Anleitung anzeigen -->
+      <div class="settings-section">
+        <button id="show-instructions" class="secondary-button">Anleitung</button>
+      </div>
+      <div class="modal-actions">
+        <button id="settings-save">Speichern</button>
+        <button id="settings-close">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding Wizard Modal -->
+  <div id="wizard-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Willkommen zum Kassenbon‑Splitter!</h3>
+      <div id="wizard-content"></div>
+      <div class="modal-actions">
+        <button id="wizard-next">Weiter</button>
+        <button id="wizard-skip">Überspringen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instructions Modal -->
+  <div id="instructions-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Anleitung</h3>
+      <div id="instructions-content"></div>
+      <div class="modal-actions">
+        <button id="instructions-close">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Folder Link Selection Modal -->
+  <div id="folder-link-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Ordner zum Teilen auswählen</h3>
+      <div id="folder-link-list"></div>
+      <div class="modal-actions">
+        <button id="folder-link-cancel">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Copy Link Confirmation Modal -->
+  <div id="copy-link-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Link kopieren</h3>
+      <p id="copy-link-text" style="word-break: break-all;"></p>
+      <div class="modal-actions">
+        <button id="copy-link-confirm">Kopieren</button>
+        <button id="copy-link-cancel">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="script.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</body>
+</html>
